@@ -26,7 +26,7 @@ if node['ssh_known_hosts']['use_data_bag_cache']
   unless Chef::DataBag.list.key?(node['ssh_known_hosts']['cacher']['data_bag'])
     fail 'use_data_bag_cache is set but the configured data bag was not found'
   end
-  
+
   hosts = data_bag_item(
     node['ssh_known_hosts']['cacher']['data_bag'],
     node['ssh_known_hosts']['cacher']['data_bag_item']
@@ -37,8 +37,13 @@ else
   if Chef::Config[:solo]
     Chef::Log.warn 'ssh_known_hosts requires Chef search - Chef Solo does not support search!'
 
+    hosts = []
+
     # On Chef Solo, we still want the current node to be in the ssh_known_hosts
-    hosts = [node]
+    # Lazily read the FQDN incase the FQDN changed and Ohai has been reloaded
+    ssh_known_hosts_entry 'the node itself' do
+      host lazy { node['fqdn'] }
+    end
   else
     hosts = partial_search(:node, "keys_ssh:* NOT name:#{node.name}",
                            :keys => {
